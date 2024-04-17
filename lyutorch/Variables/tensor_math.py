@@ -3,14 +3,14 @@ from .tensor import Tensor
 
 __all__ = ["__add__"]
 
+from .utils import attach_backward_fn
+
 
 def __add__(self, other):
     if isinstance(other, Tensor):
         requires_grad = self.requires_grad | other.requires_grad
         result = Tensor(super(Tensor, self).__add__(other), requires_grad=requires_grad)
-        result.backward_fn = lambda pass_in_grad, pass_in: add_grad(
-            result, self, other, pass_in_grad, pass_in
-        )
+        attach_backward_fn(result, requires_grad, add_grad, self, other)
         return result
     else:
         raise TypeError(
@@ -28,9 +28,7 @@ def __matmul__(self, other):
         result = Tensor(
             super(Tensor, self).__matmul__(other), requires_grad=requires_grad
         )
-        result.backward_fn = lambda pass_in_grad, pass_in: matmul_grad(
-            result, self, other, pass_in_grad, pass_in
-        )
+        attach_backward_fn(result, requires_grad, matmul_grad, self, other)
         return result
     else:
         raise TypeError(

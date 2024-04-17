@@ -4,7 +4,7 @@ from .tensor import Tensor
 
 __all__ = ["add_grad", "matmul_grad"]
 
-from .utils import make_grad, _get_identity_tensor_like
+from .utils import make_grad, _get_idarray_like, append_none_matmul_dims
 
 
 def add_grad(
@@ -15,7 +15,7 @@ def add_grad(
     pass_in: bool = True,
 ):
     if prev_self.requires_grad | other.requires_grad:
-        added_grad = _get_identity_tensor_like(self)
+        added_grad = _get_idarray_like(self)
         make_grad(self, pass_in, pass_in_grad, added_grad, 0, prev_self, other)
 
 
@@ -54,16 +54,3 @@ def matmul_grad(
         )
         right_grad = np.transpose(right_grad, transpose_dims)
         make_grad(self, pass_in, pass_in_grad, right_grad, 2, other)
-
-
-def append_none_matmul_dims(self, derivative):
-    if self.shape[:-2]:
-        derivative = (
-            np.eye(np.prod(self.shape[:-2])).reshape(self.shape[:-2] * 2)[
-                ..., None, None, None, None
-            ]
-            * derivative
-        )
-    else:
-        derivative *= np.asarray(1)[..., None, None, None, None]
-    return derivative

@@ -1,3 +1,5 @@
+from typing import Callable
+
 import numpy as np
 
 from .tensor import Tensor
@@ -70,7 +72,7 @@ def make_grad(
     grad: np.ndarray,
     bias: int,
     *args
-):
+) -> None:
     for arg in args:
         if pass_in:
             grad = np.tensordot(
@@ -85,7 +87,7 @@ def make_grad(
             _pass_grad(grad, arg)
 
 
-def _get_identity_tensor_like(tensor_input):
+def _get_idarray_like(tensor_input) -> np.ndarray:
     result = np.eye(tensor_input.size)
     result = result.reshape(tensor_input.shape * 2)
     return result
@@ -138,3 +140,42 @@ def _check_broadcast(grad_tensor, dim_derivative, add_tensor, bias=0):
     else:
         created_dim = None
     return broadcast_dims, created_dim
+
+
+def append_none_matmul_dims(self, derivative) -> np.ndarray:
+    if self.shape[:-2]:
+        derivative = (
+            np.eye(np.prod(self.shape[:-2])).reshape(self.shape[:-2] * 2)[
+                ..., None, None, None, None
+            ]
+            * derivative
+        )
+    else:
+        derivative *= np.asarray(1)[..., None, None, None, None]
+    return derivative
+
+
+def attach_backward_fn(
+    self: Tensor, requires_grad: bool, backward_fn: Callable, *args: Tensor
+) -> None:
+    """
+    This function attaches the designed backward functions to args tensor(s).
+    Shall only be used when defining new operations which has derivative.
+
+    Parameters
+    ----------
+    self : Tensor
+        The result tensor in the operation.
+    requires_grad : bool
+        If the result requires gradient
+    backward_fn : Callable
+        The backward function to be attached.
+    args : Tensor
+        The tensor(s) to which the backward function is attached.
+    """
+    if requires_grad:
+        self.backward_fn = lambda pass_in_grad, pass_in: backward_fn(
+            self, *args, pass_in_grad, pass_in
+        )
+        for arg in args:
+            self.prev.append(arg)
