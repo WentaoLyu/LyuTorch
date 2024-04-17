@@ -1,6 +1,6 @@
 import numpy as np
 
-from lyutorch._Variables import Tensor
+from .tensor import Tensor
 
 
 def _pass_grad(pass_in_grad, *args):
