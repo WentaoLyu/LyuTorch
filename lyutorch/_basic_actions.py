@@ -15,7 +15,7 @@ def squeeze(tensor: Tensor, axis=None):
     ):
         sq_grad = np.eye(self.size)
         sq_grad = sq_grad.reshape(self.shape + prev_self.shape)
-        make_grad(self, pass_in, pass_in_grad, sq_grad, 0, prev_self)
+        make_grad(self, pass_in_grad, pass_in, sq_grad, 0, prev_self)
 
     result = Tensor(np.squeeze(tensor, axis), requires_grad=tensor.requires_grad)
     attach_backward_fn(result, tensor.requires_grad, squeeze_grad, tensor)

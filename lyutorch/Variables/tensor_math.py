@@ -19,7 +19,15 @@ def __add__(self, other):
 
 
 def __mul__(self, other):
-    pass
+    if isinstance(other, Tensor):
+        requires_grad = self.requires_grad | other.requires_grad
+        result = Tensor(super(Tensor, self).__mul__(other), requires_grad=requires_grad)
+        attach_backward_fn(result, requires_grad, mul_grad, self, other)
+        return result
+    else:
+        raise TypeError(
+            f"unsupported operand type(s) for *: 'Tensor' and '{type(other)}'"
+        )
 
 
 def __matmul__(self, other):

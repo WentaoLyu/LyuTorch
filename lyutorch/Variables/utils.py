@@ -67,8 +67,8 @@ def _gradient_add(added_grad, ndim, tensor, bias=0):
 
 def make_grad(
     self: Tensor,
-    pass_in: bool,
     pass_in_grad: np.ndarray,
+    pass_in: bool,
     grad: np.ndarray,
     bias: int,
     *args
