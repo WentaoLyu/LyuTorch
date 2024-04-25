@@ -3,7 +3,7 @@ import numpy as np
 from .tensor import Tensor
 from .utils import make_grad, _get_idarray_like, append_none_matmul_dims
 
-__all__ = ["add_grad", "mul_grad", "matmul_grad", "t_grad"]
+__all__ = ["add_grad", "mul_grad", "matmul_grad", "div_grad", "t_grad"]
 
 
 def add_grad(
@@ -68,6 +68,15 @@ def matmul_grad(
         )
         right_grad = np.transpose(right_grad, transpose_dims)
         make_grad(self, pass_in_grad, pass_in, right_grad, 2, other)
+
+
+def div_grad(self, prev_self, other, pass_in_grad, pass_in):
+    if prev_self.requires_grad:
+        added_grad = _get_idarray_like(self) / other
+        make_grad(self, pass_in_grad, pass_in, added_grad, 0, prev_self)
+    if other.requires_grad:
+        added_grad = -_get_idarray_like(self) * prev_self / (other**2)
+        make_grad(self, pass_in_grad, pass_in, added_grad, 0, other)
 
 
 def t_grad(self: Tensor, prev_self: Tensor, pass_in_grad: np.ndarray, pass_in: bool):

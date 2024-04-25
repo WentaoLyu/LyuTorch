@@ -21,7 +21,7 @@ def _pass_grad(pass_in_grad, *args):
             arg.backward_fn(pass_in_grad, True)
 
 
-def _gradient_add(added_grad, ndim, tensor, bias=0):
+def _gradient_add(added_grad, ndim, tensor, bias=0, broadcast_check=True):
     """
     Add the gradient to the tensor, campatible with broadcast.
 
@@ -36,6 +36,9 @@ def _gradient_add(added_grad, ndim, tensor, bias=0):
     tensor
         The tensor to which the gradient is added.
     """
+    if not broadcast_check:
+        tensor.grad += added_grad
+        return
     if tensor.requires_grad:
         broadcast_dims, created_dims = _check_broadcast(added_grad, ndim, tensor, bias)
         if created_dims is not None:
@@ -71,7 +74,8 @@ def make_grad(
     pass_in: bool,
     grad: np.ndarray,
     bias: int,
-    *args
+    *args,
+    **kwargs,
 ) -> None:
     for arg in args:
         if pass_in:
@@ -80,10 +84,10 @@ def make_grad(
                 grad,
                 axes=(list(range(-self.ndim, 0)), list(range(self.ndim))),
             )
-            _gradient_add(grad, self.ndim, arg, bias)
+            _gradient_add(grad, self.ndim, arg, bias, **kwargs)
             _pass_grad(grad, arg)
         else:
-            _gradient_add(grad, self.ndim, arg, bias)
+            _gradient_add(grad, self.ndim, arg, bias, **kwargs)
             _pass_grad(grad, arg)
 
 
@@ -133,7 +137,7 @@ def _check_broadcast(grad_tensor, dim_derivative, add_tensor, bias=0):
     )
     broadcast_dims = []
     for i in range(dim_add):
-        if add_tensor.shape[i] == 1 and shape_grad[-(dim_add - i)] != 1:
+        if (add_tensor.shape[i] == 1) and (shape_grad[-(dim_add - i)] != 1):
             broadcast_dims.append(i)
     if dim_add < dim_derivative:
         created_dim = np.arange(0, dim_derivative - dim_add)
