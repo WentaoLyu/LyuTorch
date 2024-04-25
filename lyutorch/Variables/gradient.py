@@ -1,10 +1,9 @@
 import numpy as np
 
 from .tensor import Tensor
-
-__all__ = ["add_grad", "mul_grad", "matmul_grad"]
-
 from .utils import make_grad, _get_idarray_like, append_none_matmul_dims
+
+__all__ = ["add_grad", "mul_grad", "matmul_grad", "t_grad"]
 
 
 def add_grad(
@@ -69,3 +68,11 @@ def matmul_grad(
         )
         right_grad = np.transpose(right_grad, transpose_dims)
         make_grad(self, pass_in_grad, pass_in, right_grad, 2, other)
+
+
+def t_grad(self: Tensor, prev_self: Tensor, pass_in_grad: np.ndarray, pass_in: bool):
+    if prev_self.requires_grad:
+        grad = np.eye(self.size)
+        grad = grad.reshape(self.shape * 2)
+        grad = np.transpose(grad, (0, 1, 3, 2))
+        make_grad(self, pass_in_grad, pass_in, grad, 0, prev_self)

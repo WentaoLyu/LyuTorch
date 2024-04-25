@@ -42,3 +42,16 @@ def __matmul__(self, other):
         raise TypeError(
             f"unsupported operand type(s) for @: 'Tensor' and '{type(other)}'"
         )
+
+
+def t(self):
+    if isinstance(self, Tensor):
+        if self.ndim == 2:
+            requires_grad = self.requires_grad
+            result = Tensor(super(Tensor, self).T, requires_grad=requires_grad)
+            attach_backward_fn(result, requires_grad, t_grad, self)
+            return result
+        else:
+            raise ValueError("t() only supports 2D tensor")
+    else:
+        raise TypeError(f"unsupported operand type(s) for t(): '{type(self)}'")

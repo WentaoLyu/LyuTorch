@@ -156,7 +156,7 @@ def append_none_matmul_dims(self, derivative) -> np.ndarray:
 
 
 def attach_backward_fn(
-    self: Tensor, requires_grad: bool, backward_fn: Callable, *args: Tensor
+    self: Tensor, requires_grad: bool, backward_fn: Callable, *args: Tensor, **kwargs
 ) -> None:
     """
     This function attaches the designed backward functions to args tensor(s).
@@ -175,7 +175,7 @@ def attach_backward_fn(
     """
     if requires_grad:
         self.backward_fn = lambda pass_in_grad, pass_in: backward_fn(
-            self, *args, pass_in_grad, pass_in
+            self, *args, pass_in_grad, pass_in, **kwargs
         )
         for arg in args:
             self.prev.append(arg)
