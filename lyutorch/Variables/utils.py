@@ -5,7 +5,7 @@ import numpy as np
 from .tensor import Tensor
 
 
-def _pass_grad(pass_in_grad, *args):
+def _pass_grad(pass_in_grad, tensor):
     """
     Pass the gradient to the previous tensors.
 
@@ -13,15 +13,16 @@ def _pass_grad(pass_in_grad, *args):
     ----------
     pass_in_grad
         The gradient to be passed.
-    args
+    tensor
         The tensor(s) to which the gradient is passed.
     """
-    for arg in args:
-        if arg.requires_grad and (arg.backward_fn is not None):
-            arg.backward_fn(pass_in_grad, True)
+    if tensor.requires_grad and (tensor.backward_fn is not None):
+        tensor.backward_fn(pass_in_grad, True)
 
 
-def _gradient_add(added_grad, ndim, tensor, bias=0, broadcast_check=True):
+def _gradient_add(
+    added_grad, ndim, tensor, bias=0, broadcast_check=True, *args, **kwargs
+):
     """
     Add the gradient to the tensor, campatible with broadcast.
 
@@ -36,10 +37,11 @@ def _gradient_add(added_grad, ndim, tensor, bias=0, broadcast_check=True):
     tensor
         The tensor to which the gradient is added.
     """
-    if not broadcast_check:
+    if not broadcast_check and tensor.requires_grad:
+        tensor.graph_exists = True
         tensor.grad += added_grad
-        return
-    if tensor.requires_grad:
+    elif tensor.requires_grad:
+        tensor.graph_exists = True
         broadcast_dims, created_dims = _check_broadcast(added_grad, ndim, tensor, bias)
         if created_dims is not None:
             if broadcast_dims:
@@ -66,6 +68,7 @@ def _gradient_add(added_grad, ndim, tensor, bias=0, broadcast_check=True):
             tensor.grad += added_grad
         else:
             tensor.grad += added_grad
+    _pass_grad(added_grad, tensor)
 
 
 def make_grad(
@@ -79,16 +82,29 @@ def make_grad(
 ) -> None:
     for arg in args:
         if pass_in:
-            grad = np.tensordot(
-                pass_in_grad,
-                grad,
-                axes=(list(range(-self.ndim, 0)), list(range(self.ndim))),
-            )
-            _gradient_add(grad, self.ndim, arg, bias, **kwargs)
-            _pass_grad(grad, arg)
+            if not isinstance(pass_in_grad, int):
+                _gradient_add(
+                    np.tensordot(
+                        pass_in_grad,
+                        grad,
+                        axes=(list(range(-self.ndim, 0)), list(range(self.ndim))),
+                    ),
+                    self.ndim,
+                    arg,
+                    bias,
+                    **kwargs,
+                )
+            else:
+                _gradient_add(
+                    pass_in_grad * grad,
+                    self.ndim,
+                    arg,
+                    bias,
+                    **kwargs,
+                )
+
         else:
             _gradient_add(grad, self.ndim, arg, bias, **kwargs)
-            _pass_grad(grad, arg)
 
 
 def _get_idarray_like(tensor_input) -> np.ndarray:
@@ -182,4 +198,4 @@ def attach_backward_fn(
             self, *args, pass_in_grad, pass_in, **kwargs
         )
         for arg in args:
-            self.prev.append(arg)
+            self.prev.add(arg)
