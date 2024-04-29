@@ -1,6 +1,6 @@
 import numpy as np
 
-from .Variables import Tensor
+from .variable import Tensor
 from .Variables.utils import make_grad, attach_backward_fn
 
 
