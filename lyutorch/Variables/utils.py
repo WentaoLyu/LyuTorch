@@ -3,21 +3,7 @@ from typing import Callable
 import numpy as np
 
 from .tensor import Tensor
-
-
-def _pass_grad(pass_in_grad, tensor):
-    """
-    Pass the gradient to the previous tensors.
-
-    Parameters
-    ----------
-    pass_in_grad
-        The gradient to be passed.
-    tensor
-        The tensor(s) to which the gradient is passed.
-    """
-    if tensor.requires_grad and (tensor.backward_fn is not None):
-        tensor.backward_fn(pass_in_grad, True)
+from .tape import tape
 
 
 def _gradient_add(
@@ -68,7 +54,6 @@ def _gradient_add(
             tensor.grad += added_grad
         else:
             tensor.grad += added_grad
-    _pass_grad(added_grad, tensor)
 
 
 def make_grad(
@@ -83,17 +68,21 @@ def make_grad(
     for arg in args:
         if pass_in:
             if not isinstance(pass_in_grad, int):
-                _gradient_add(
-                    np.tensordot(
-                        pass_in_grad,
-                        grad,
-                        axes=(list(range(-self.ndim, 0)), list(range(self.ndim))),
-                    ),
-                    self.ndim,
-                    arg,
-                    bias,
-                    **kwargs,
-                )
+                if isinstance(pass_in_grad, int) | isinstance(grad, int):
+                    _gradient_add(pass_in_grad * grad, self.ndim, arg, bias, **kwargs)
+                else:
+
+                    _gradient_add(
+                        np.tensordot(
+                            pass_in_grad,
+                            grad,
+                            axes=(list(range(-self.ndim, 0)), list(range(self.ndim))),
+                        ),
+                        self.ndim,
+                        arg,
+                        bias,
+                        **kwargs,
+                    )
             else:
                 _gradient_add(
                     pass_in_grad * grad,
@@ -193,9 +182,14 @@ def attach_backward_fn(
     args : Tensor
         The tensor(s) to which the backward function is attached.
     """
+    if tape.make_grad is False:
+        return
     if requires_grad:
         self.backward_fn = lambda pass_in_grad, pass_in: backward_fn(
             self, *args, pass_in_grad, pass_in, **kwargs
         )
         for arg in args:
-            self.prev.add(arg)
+            if arg.requires_grad:
+                tape.add_edge(arg, self)
+                if tape.graph_exists is False:
+                    tape.graph_exists = True
